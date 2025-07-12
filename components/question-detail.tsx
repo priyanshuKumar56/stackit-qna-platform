@@ -112,7 +112,6 @@ export function QuestionDetail({ question }: QuestionDetailProps) {
         </CardContent>
       </Card>
 
-          <NestedComments questionId={question.id} />
       <Card>
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold mb-4">Reply</h3>
@@ -129,6 +128,7 @@ export function QuestionDetail({ question }: QuestionDetailProps) {
         </CardContent>
       </Card>
 
+          <NestedComments questionId={question.id} />
     </div>
   )
 }
