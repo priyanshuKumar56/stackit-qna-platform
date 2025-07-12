@@ -1,7 +1,8 @@
 # 📚 StackIt – A Minimal Q&A Forum Platform
 
 > 🚀 Built for Odoo Hackathon 2025  
-> 👨‍💻 Team: 
+> 👨‍💻 Team: Team 2321
+> Email: priyanshukumar93861@gmail.com
 > 🧠 Problem Statement: Build a collaborative Q&A platform for structured knowledge sharing
 
 ---
