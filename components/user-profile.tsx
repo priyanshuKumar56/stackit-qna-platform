@@ -25,124 +25,125 @@ import {
   Save,
   Loader2,
 } from "lucide-react"
-import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { fetchUserById, updateUserProfile } from "@/store/usersSlice" // Make sure you have fetchUserById
-import { fetchUserQuestions } from "@/store/questionsSlice" // Fetch user's questions
-import { fetchUserComments } from "@/store/commentsSlice" // Fetch user's comments
-import { updateQuestionInList } from "@/store/questionsSlice"
+
+import { useAuth } from "@/lib/auth"
 import Link from "next/link"
-import { useAuthStore } from "@/lib/auth" // Assuming you have auth store
 
 interface UserProfileProps {
-  userId?: string // Optional prop, will default to current user
+  userId?: string
+}
+
+interface User {
+  id: string
+  name: string
+  username: string
+  email: string
+  avatar: string
+  bio: string
+  location: string
+  website: string
+  joinDate: string
+  reputation: number
+  questionsCount: number
+  answersCount: number
+  viewsCount: number
+  votesReceived: number
+  badges: {
+    gold: number
+    silver: number
+    bronze: number
+  }
+  questions: any[]
+  answers: any[]
 }
 
 export function UserProfile({ userId }: UserProfileProps) {
-  const dispatch = useAppDispatch()
-  const { user: authUser } = useAuthStore() // Get authenticated user
-  const { currentUser, loading: userLoading, error: userError } = useAppSelector((state) => state.users)
-  const { questions, loading: questionsLoading } = useAppSelector((state) => state.questions)
-  const { comments, loading: commentsLoading } = useAppSelector((state) => state.comments)
-
+  const { user: currentUser, isAuthenticated, isReady } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
-  const [editableProfileData, setEditableProfileData] = useState<Partial<typeof currentUser> | null>(null)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    bio: "",
+    location: "",
+    website: ""
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Determine if this is the user's own profile
+  const isOwnProfile = !userId || userId === currentUser?.id
+
+  // The user to display (either current user or fetched user)
   
-  // Determine which user to show
-  const targetUserId = userId || authUser?.id
-  const isOwnProfile = !userId || userId === authUser?.id
+  const displayUser = currentUser 
+  console.log("Current user:", )
 
-  // Fetch user data on component mount
+  // Initialize edit form when user data is available
   useEffect(() => {
-    if (targetUserId) {
-      console.log("Fetching user data for:", targetUserId)
-      dispatch(fetchUserById(targetUserId))
-      dispatch(fetchUserQuestions(targetUserId))
-      dispatch(fetchUserComments(targetUserId))
+    if (displayUser && isEditing) {
+      setEditForm({
+        name: displayUser.name || "",
+        bio: displayUser.bio || "",
+        location: displayUser.location || "",
+        website: displayUser.website || ""
+      })
     }
-  }, [dispatch, targetUserId])
+  }, [displayUser, isEditing])
 
-  // Initialize editable data when currentUser changes
-  useEffect(() => {
-    if (currentUser && isOwnProfile) {
-      setEditableProfileData(currentUser)
+  // Format join date
+  const formatJoinDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long'
+    })
+  }
+
+  // Handle form input changes
+  const handleInputChange = (field: string, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Handle save profile changes
+  const handleSaveProfile = async () => {
+    setIsSaving(true)
+    try {
+      // Add your API call here to save profile changes
+      // await updateUserProfile(editForm)
+      console.log("Saving profile:", editForm)
+      setIsEditing(false)
+    } catch (error) {
+      console.error("Error saving profile:", error)
+    } finally {
+      setIsSaving(false)
     }
-  }, [currentUser, isOwnProfile])
+  }
 
-  // Loading state
-  if (userLoading || questionsLoading || commentsLoading) {
+  // Show loading state if auth is not ready
+  if (!isReady) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <span className="ml-2 text-gray-600">Loading user profile...</span>
+      <div className="max-w-6xl mx-auto p-6 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     )
   }
 
-  // Error state
-  if (userError) {
+  // Show message if user is not authenticated
+  if (!isAuthenticated) {
     return (
-      <div className="text-center py-12">
-        <div className="text-red-600 mb-4">Error loading user profile</div>
-        <p className="text-gray-500">{userError}</p>
-        <Button 
-          onClick={() => targetUserId && dispatch(fetchUserById(targetUserId))}
-          className="mt-4"
-        >
-          Try Again
-        </Button>
+      <div className="max-w-6xl mx-auto p-6 text-center">
+        <p className="text-gray-600">Please log in to view your profile.</p>
       </div>
     )
   }
 
-  // No user found
-  if (!currentUser) {
+  // Show message if no user data
+  if (!displayUser) {
     return (
-      <div className="text-center py-12">
-        <div className="text-gray-600 mb-4">User not found</div>
-        <p className="text-gray-500">The user profile you're looking for doesn't exist.</p>
+      <div className="max-w-6xl mx-auto p-6 text-center">
+        <p className="text-gray-600">User not found.</p>
       </div>
     )
-  }
-
-  // Filter user's content
-  const myQuestions = questions.filter((q) => q.author.id === currentUser.id)
-  const myAnswers = comments.filter((c) => c.author.id === currentUser.id && !c.parentId)
-
-  // Create recent activity
-  const recentActivity = [
-    ...myQuestions.map((q) => ({
-      type: "question" as const,
-      title: q.title,
-      timestamp: q.timestamp,
-      votes: q.votes,
-      id: q.id,
-    })),
-    ...myAnswers.map((a) => ({
-      type: "answer" as const,
-      title: `Answer to: ${questions.find((q) => q.id === a.questionId)?.title || "Unknown Question"}`,
-      timestamp: a.timestamp,
-      votes: a.votes,
-      id: a.id,
-    })),
-  ]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 5)
-
-  const handleSave = async () => {
-    if (editableProfileData && isOwnProfile) {
-      try {
-        await dispatch(updateUserProfile(editableProfileData)).unwrap()
-        setIsEditing(false)
-      } catch (error) {
-        console.error("Failed to update profile:", error)
-        // You might want to show a toast notification here
-      }
-    }
-  }
-
-  const handleQuestionVote = (questionId: string, currentVotes: number, type: "up" | "down") => {
-    const newVotes = type === "up" ? currentVotes + 1 : currentVotes - 1
-    dispatch(updateQuestionInList({ id: questionId, votes: newVotes }))
   }
 
   return (
@@ -152,9 +153,9 @@ export function UserProfile({ userId }: UserProfileProps) {
         <CardContent className="p-6">
           <div className="flex items-start gap-6">
             <Avatar className="w-24 h-24">
-              <AvatarImage src={currentUser.avatar || "/placeholder.svg"} alt={currentUser.name} />
+              <AvatarImage src={displayUser.avatar || "/placeholder.svg"} alt={displayUser.name || "User"} />
               <AvatarFallback className="text-2xl">
-                {currentUser.name
+                {displayUser.name
                   ?.split(" ")
                   .map((n) => n[0])
                   .join("") || "?"}
@@ -164,41 +165,111 @@ export function UserProfile({ userId }: UserProfileProps) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold">{currentUser.name}</h1>
-                  <p className="text-gray-600">@{currentUser.username}</p>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editForm.name}
+                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        placeholder="Your name"
+                        className="text-2xl font-bold"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <h1 className="text-3xl font-bold">{displayUser.name || "Unknown User"}</h1>
+                      {displayUser.username && (
+                        <p className="text-gray-600">@{displayUser.username}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {isOwnProfile && (
-                  <Button onClick={() => setIsEditing(!isEditing)} className="gap-2">
-                    <Edit className="w-4 h-4" />
-                    {isEditing ? "Cancel" : "Edit Profile"}
-                  </Button>
-                )}
-              </div>
-
-              <p className="text-gray-700 mb-4">{currentUser.bio}</p>
-
-              <div className="flex items-center gap-6 text-sm text-gray-600">
-                {currentUser.location && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{currentUser.location}</span>
-                  </div>
-                )}
-                {currentUser.website && (
-                  <div className="flex items-center gap-1">
-                    <LinkIcon className="w-4 h-4" />
-                    <a href={currentUser.website} className="text-blue-600 hover:underline">
-                      {currentUser.website}
-                    </a>
-                  </div>
-                )}
-                {currentUser.joinDate && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>Joined {currentUser.joinDate}</span>
+                {isOwnProfile && isAuthenticated && (
+                  <div className="flex gap-2">
+                    {isEditing ? (
+                      <>
+                        <Button onClick={handleSaveProfile} disabled={isSaving} className="gap-2">
+                          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsEditing(false)}>
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button onClick={() => setIsEditing(true)} className="gap-2">
+                        <Edit className="w-4 h-4" />
+                        Edit Profile
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
+
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea
+                      id="bio"
+                      value={editForm.bio}
+                      onChange={(e) => handleInputChange("bio", e.target.value)}
+                      placeholder="Tell us about yourself..."
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={editForm.location}
+                        onChange={(e) => handleInputChange("location", e.target.value)}
+                        placeholder="Your location"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="website">Website</Label>
+                      <Input
+                        id="website"
+                        value={editForm.website}
+                        onChange={(e) => handleInputChange("website", e.target.value)}
+                        placeholder="https://your-website.com"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {displayUser.bio && (
+                    <p className="text-gray-700 mb-4">{displayUser.bio}</p>
+                  )}
+
+                  <div className="flex items-center gap-6 text-sm text-gray-600">
+                    {displayUser.location && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        <span>{displayUser.location}</span>
+                      </div>
+                    )}
+                    {displayUser.website && (
+                      <div className="flex items-center gap-1">
+                        <LinkIcon className="w-4 h-4" />
+                        <a href={displayUser.website} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                          {displayUser.website}
+                        </a>
+                      </div>
+                    )}
+                    {displayUser.joinDate && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>Joined {formatJoinDate(displayUser.joinDate)}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
@@ -208,26 +279,26 @@ export function UserProfile({ userId }: UserProfileProps) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600">{currentUser.reputation || 0}</div>
+            <div className="text-2xl font-bold text-blue-600">{displayUser.reputation || 0}</div>
             <div className="text-sm text-gray-600">Reputation</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-green-600">{myQuestions.length}</div>
+            <div className="text-2xl font-bold text-green-600">{displayUser.questionsCount || displayUser.questions?.length || 0}</div>
             <div className="text-sm text-gray-600">Questions</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-purple-600">{myAnswers.length}</div>
+            <div className="text-2xl font-bold text-purple-600">{displayUser.answersCount || displayUser.answers?.length || 0}</div>
             <div className="text-sm text-gray-600">Answers</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-amber-600">
-              {(currentUser.badges?.gold || 0) + (currentUser.badges?.silver || 0) + (currentUser.badges?.bronze || 0)}
+              {displayUser.badges ? (displayUser.badges.gold + displayUser.badges.silver + displayUser.badges.bronze) : 0}
             </div>
             <div className="text-sm text-gray-600">Badges</div>
           </CardContent>
@@ -239,7 +310,7 @@ export function UserProfile({ userId }: UserProfileProps) {
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="answers">Answers</TabsTrigger>
-          {isOwnProfile && isEditing && <TabsTrigger value="settings">Settings</TabsTrigger>}
+          {isOwnProfile && <TabsTrigger value="badges">Badges</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="activity" className="space-y-4">
@@ -247,242 +318,107 @@ export function UserProfile({ userId }: UserProfileProps) {
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className={`w-5 h-5 ${activity.type === "question" ? "text-blue-600" : "text-green-600"}`} />
-                      <div>
-                        <Link href={`/${activity.type === "question" ? "question" : "question"}/${activity.id}`}>
-                          <div className="font-medium hover:text-blue-600 cursor-pointer">{activity.title}</div>
-                        </Link>
-                        <div className="text-sm text-gray-600">{activity.timestamp}</div>
+            <CardContent>
+              <div className="space-y-4">
+                {displayUser.questions?.length === 0 && displayUser.answers?.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No recent activity</p>
+                ) : (
+                  <div className="space-y-3">
+                    {displayUser.answers?.map((answer, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <MessageSquare className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <p className="font-medium">Answered a question</p>
+                          <p className="text-sm text-gray-600">Answer provided</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <ThumbsUp className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">{activity.votes}</span>
-                    </div>
+                    ))}
+                    {displayUser.questions?.map((question, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <MessageSquare className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="font-medium">Asked a question</p>
+                          <p className="text-sm text-gray-600">Question posted</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No recent activity found</p>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="questions">
+        <TabsContent value="questions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Questions ({myQuestions.length})</CardTitle>
+              <CardTitle>Questions ({displayUser.questionsCount || 0})</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {myQuestions.length > 0 ? (
-                myQuestions.map((question) => (
-                  <Card key={question.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex gap-4">
-                        <div className="flex flex-col items-center gap-2 text-center min-w-[60px]">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleQuestionVote(question.id, question.votes, "up")}
-                            className="hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <ArrowUp className="w-5 h-5" />
-                          </Button>
-                          <span className="text-lg font-semibold text-gray-700">{question.votes}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleQuestionVote(question.id, question.votes, "down")}
-                            className="hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <ArrowDown className="w-5 h-5" />
-                          </Button>
-                        </div>
-
-                        <div className="flex-1">
-                          <Link href={`/question/${question.id}`}>
-                            <h3 className="font-semibold text-lg mb-3 hover:text-blue-600 cursor-pointer text-gray-900 leading-tight">
-                              {question.title}
-                            </h3>
-                          </Link>
-
-                          <p className="text-gray-600 mb-4 line-clamp-2 leading-relaxed">{question.content}</p>
-
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {question.tags?.map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="outline"
-                                className="text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <MessageSquare className="w-4 h-4" />
-                                <span>{question.replies || 0} answers</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Eye className="w-4 h-4" />
-                                <span>{question.views || 0} views</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1 text-sm text-gray-500">
-                                <Clock className="w-4 h-4" />
-                                <span>{question.timestamp}</span>
-                              </div>
-                              {question.hasAcceptedAnswer && (
-                                <div className="flex items-center gap-1">
-                                  <CheckCircle className="w-5 h-5 text-green-500" />
-                                  <span className="text-sm text-green-600 font-medium">Solved</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+            <CardContent>
+              {displayUser.questions?.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No questions asked yet</p>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>{isOwnProfile ? "You haven't asked any questions yet." : "This user hasn't asked any questions yet."}</p>
+                <div className="space-y-3">
+                  {displayUser.questions?.map((question, index) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <h3 className="font-medium">Question {index + 1}</h3>
+                      <p className="text-sm text-gray-600 mt-1">Question details would go here</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="answers">
+        <TabsContent value="answers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Answers ({myAnswers.length})</CardTitle>
+              <CardTitle>Answers ({displayUser.answersCount || 0})</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {myAnswers.length > 0 ? (
-                myAnswers.map((answer) => (
-                  <Card key={answer.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="flex flex-col items-center gap-2 text-center min-w-[60px]">
-                          <Button variant="ghost" size="icon" className="hover:bg-blue-50 hover:text-blue-600">
-                            <ArrowUp className="w-5 h-5" />
-                          </Button>
-                          <span className="text-lg font-semibold text-gray-700">{answer.votes}</span>
-                          <Button variant="ghost" size="icon" className="hover:bg-blue-50 hover:text-blue-600">
-                            <ArrowDown className="w-5 h-5" />
-                          </Button>
-                        </div>
-                        <div className="flex-1">
-                          <Link href={`/question/${answer.questionId}`}>
-                            <h3 className="font-semibold text-lg mb-3 hover:text-blue-600 cursor-pointer text-gray-900 leading-tight">
-                              {answer.content.substring(0, 100)}...
-                            </h3>
-                          </Link>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <MessageSquare className="w-4 h-4" />
-                                <span>{answer.replies?.length || 0} replies</span>
-                              </div>
-                            </div>
-                            <span className="text-sm text-gray-500">{answer.timestamp}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+            <CardContent>
+              {displayUser.answers?.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No answers provided yet</p>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>{isOwnProfile ? "You haven't provided any answers yet." : "This user hasn't provided any answers yet."}</p>
+                <div className="space-y-3">
+                  {displayUser.answers?.map((answer, index) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <h3 className="font-medium">Answer {index + 1}</h3>
+                      <p className="text-sm text-gray-600 mt-1">Answer details would go here</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {isOwnProfile && isEditing && (
-          <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Edit Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={editableProfileData?.name || ""}
-                      onChange={(e) => setEditableProfileData(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={editableProfileData?.username || ""}
-                      onChange={(e) => setEditableProfileData(prev => ({ ...prev, username: e.target.value }))}
-                    />
-                  </div>
+        <TabsContent value="badges" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Badges</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-yellow-600">{displayUser.badges?.gold || 0}</div>
+                  <div className="text-sm text-gray-600">Gold Badges</div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={editableProfileData?.bio || ""}
-                    onChange={(e) => setEditableProfileData(prev => ({ ...prev, bio: e.target.value }))}
-                    rows={3}
-                  />
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <Trophy className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-gray-600">{displayUser.badges?.silver || 0}</div>
+                  <div className="text-sm text-gray-600">Silver Badges</div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={editableProfileData?.location || ""}
-                      onChange={(e) => setEditableProfileData(prev => ({ ...prev, location: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      value={editableProfileData?.website || ""}
-                      onChange={(e) => setEditableProfileData(prev => ({ ...prev, website: e.target.value }))}
-                    />
-                  </div>
+                <div className="text-center p-4 bg-amber-50 rounded-lg">
+                  <Trophy className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-amber-600">{displayUser.badges?.bronze || 0}</div>
+                  <div className="text-sm text-gray-600">Bronze Badges</div>
                 </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave}>Save Changes</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   )
