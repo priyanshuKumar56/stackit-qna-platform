@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" }) // Configu
 export const metadata: Metadata = {
   title: "StackIt QA Platform",
   description: "A minimal Q&A platform for community support",
-    generator: 'v0.dev'
+    
 }
 
 export default function RootLayout({
