@@ -1,134 +1,273 @@
 "use client"
 
+import type * as React from "react"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-} from "@/components/ui/sidebar"
-import { Badge } from "@/components/ui/badge"
-import { Home, TrendingUp, Clock, Star, Tag, Users, Settings, HelpCircle } from "lucide-react"
+  AudioWaveform,
+  Command,
+  Frame,
+  GalleryVerticalEnd,
+  Map,
+  PieChart,
+  Code,
+  DollarSign,
+  Building,
+  Zap,
+  Palette,
+  Briefcase,
+  TrendingUp,
+  Rocket,
+} from "lucide-react"
 
-const navigationItems = [
-  { title: "All Questions", icon: Home, filter: "all", count: 1247 },
-  { title: "Trending", icon: TrendingUp, filter: "trending", count: 23 },
-  { title: "Recent", icon: Clock, filter: "recent", count: 156 },
-  { title: "Unanswered", icon: HelpCircle, filter: "unanswered", count: 89 },
-  { title: "My Questions", icon: Star, filter: "my-questions", count: 12 },
-]
+import { NavMain } from "@/components/nav-main"
+import { NavProjects } from "@/components/nav-projects"
+import { NavUser } from "@/components/nav-user"
+import { TeamSwitcher } from "@/components/team-switcher"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar"
 
-const popularTags = [
-  { name: "React", count: 234 },
-  { name: "JavaScript", count: 189 },
-  { name: "Next.js", count: 156 },
-  { name: "TypeScript", count: 134 },
-  { name: "CSS", count: 98 },
-  { name: "Node.js", count: 87 },
-  { name: "Python", count: 76 },
-  { name: "API", count: 65 },
-]
-
-interface AppSidebarProps {
-  selectedFilter: string
-  onFilterChange: (filter: string) => void
+// This is sample data with updated categories
+const data = {
+  user: {
+    name: "shadcn",
+    email: "m@example.com",
+    avatar: "/avatars/shadcn.jpg",
+  },
+  teams: [
+    {
+      name: "Stackit Community",
+      logo: GalleryVerticalEnd,
+      plan: "Enterprise",
+    },
+    {
+      name: "Acme Corp.",
+      logo: AudioWaveform,
+      plan: "Startup",
+    },
+    {
+      name: "Evil Corp.",
+      logo: Command,
+      plan: "Free",
+    },
+  ],
+  navMain: [
+    {
+      title: "Technology",
+      url: "#",
+      icon: Code,
+      isActive: true,
+      items: [
+        {
+          title: "Web Development",
+          url: "#",
+        },
+        {
+          title: "Mobile Development",
+          url: "#",
+        },
+        {
+          title: "Data Science",
+          url: "#",
+        },
+        {
+          title: "DevOps",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Finance",
+      url: "#",
+      icon: DollarSign,
+      items: [
+        {
+          title: "FinTech",
+          url: "#",
+        },
+        {
+          title: "Cryptocurrency",
+          url: "#",
+        },
+        {
+          title: "Investment",
+          url: "#",
+        },
+        {
+          title: "Banking",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Industry",
+      url: "#",
+      icon: Building,
+      items: [
+        {
+          title: "Manufacturing",
+          url: "#",
+        },
+        {
+          title: "Healthcare",
+          url: "#",
+        },
+        {
+          title: "Education",
+          url: "#",
+        },
+        {
+          title: "Retail",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "SaaS Products",
+      url: "#",
+      icon: Zap,
+      items: [
+        {
+          title: "CRM Systems",
+          url: "#",
+        },
+        {
+          title: "Project Management",
+          url: "#",
+        },
+        {
+          title: "Analytics Tools",
+          url: "#",
+        },
+        {
+          title: "Communication",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Design & UX",
+      url: "#",
+      icon: Palette,
+      items: [
+        {
+          title: "UI Design",
+          url: "#",
+        },
+        {
+          title: "UX Research",
+          url: "#",
+        },
+        {
+          title: "Design Systems",
+          url: "#",
+        },
+        {
+          title: "Prototyping",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Business",
+      url: "#",
+      icon: Briefcase,
+      items: [
+        {
+          title: "Strategy",
+          url: "#",
+        },
+        {
+          title: "Operations",
+          url: "#",
+        },
+        {
+          title: "Legal",
+          url: "#",
+        },
+        {
+          title: "HR",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Marketing",
+      url: "#",
+      icon: TrendingUp,
+      items: [
+        {
+          title: "Digital Marketing",
+          url: "#",
+        },
+        {
+          title: "Content Strategy",
+          url: "#",
+        },
+        {
+          title: "SEO",
+          url: "#",
+        },
+        {
+          title: "Social Media",
+          url: "#",
+        },
+      ],
+    },
+    {
+      title: "Startups",
+      url: "#",
+      icon: Rocket,
+      items: [
+        {
+          title: "Funding",
+          url: "#",
+        },
+        {
+          title: "Product Launch",
+          url: "#",
+        },
+        {
+          title: "Growth Hacking",
+          url: "#",
+        },
+        {
+          title: "Team Building",
+          url: "#",
+        },
+      ],
+    },
+  ],
+  projects: [
+    {
+      name: "Design Engineering",
+      url: "#",
+      icon: Frame,
+    },
+    {
+      name: "Sales & Marketing",
+      url: "#",
+      icon: PieChart,
+    },
+    {
+      name: "Travel",
+      url: "#",
+      icon: Map,
+    },
+  ],
 }
 
-export function AppSidebar({ selectedFilter, onFilterChange }: AppSidebarProps) {
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">S</span>
-          </div>
-          <span className="font-bold text-lg">StackIt</span>
-        </div>
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
+        <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.filter}>
-                  <SidebarMenuButton
-                    onClick={() => onFilterChange(item.filter)}
-                    isActive={selectedFilter === item.filter}
-                    className="w-full justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {item.count}
-                    </Badge>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Tag className="w-4 h-4" />
-            Popular Tags
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <div className="space-y-2 p-2">
-              {popularTags.map((tag) => (
-                <div
-                  key={tag.name}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer"
-                >
-                  <span className="text-sm font-medium">{tag.name}</span>
-                  <Badge variant="outline" className="text-xs">
-                    {tag.count}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Community</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    <span>Members</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    2.4k
-                  </Badge>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain items={data.navMain} />
+        <NavProjects projects={data.projects} />
       </SidebarContent>
-
-      <SidebarFooter className="p-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter>
+        <NavUser user={data.user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }

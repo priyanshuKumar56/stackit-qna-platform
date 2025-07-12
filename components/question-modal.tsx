@@ -7,59 +7,86 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RichTextEditor } from "@/components/rich-text-editor"
 import { TagInput } from "@/components/tag-input"
-import { useAppDispatch } from "@/store/hooks"
-import { addQuestion } from "@/store/questionsSlice"
-import { setQuestionModalOpen } from "@/store/uiSlice"
+import { useAuthStore } from "@/lib/auth"
+import { questionsAPI } from "@/lib/api"
 import { HelpCircle, Lightbulb } from "lucide-react"
+import toast from "react-hot-toast"
 
 interface QuestionModalProps {
   open: boolean
+  onClose: () => void
+  onQuestionCreated?: () => void
 }
 
-export function QuestionModal({ open }: QuestionModalProps) {
-  const dispatch = useAppDispatch()
+const categories = [
+  { value: "Technology", label: "Technology" },
+  { value: "Finance", label: "Finance" },
+  { value: "Industry", label: "Industry" },
+  { value: "SaaS Products", label: "SaaS Products" },
+  { value: "Web Development", label: "Web Development" },
+  { value: "Mobile Development", label: "Mobile Development" },
+  { value: "Data Science", label: "Data Science" },
+  { value: "DevOps", label: "DevOps" },
+  { value: "UI/UX Design", label: "UI/UX Design" },
+  { value: "Business", label: "Business" },
+  { value: "Marketing", label: "Marketing" },
+  { value: "Startups", label: "Startups" },
+  { value: "General", label: "General" },
+]
+
+export default function QuestionModal({ open, onClose, onQuestionCreated }: QuestionModalProps) {
+  const { isAuthenticated } = useAuthStore()
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
+  const [category, setCategory] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
 
-    const newQuestion = {
-      id: Date.now().toString(),
-      title,
-      content,
-      author: {
-        name: "Current User",
-        avatar: "/placeholder.svg",
-        badge: "Member",
-        reputation: 100,
-      },
-      category: "General",
-      tags,
-      votes: 0,
-      replies: 0,
-      views: 0,
-      timestamp: "just now",
-      hasAcceptedAnswer: false,
+    if (!isAuthenticated) {
+      toast.error("Please login to ask a question")
+      return
     }
 
-    dispatch(addQuestion(newQuestion))
+    if (!title.trim() || !content.trim() || !category) {
+      toast.error("Please fill in all required fields")
+      return
+    }
 
-    // Reset form
-    setTitle("")
-    setContent("")
-    setTags([])
-    setIsSubmitting(false)
-    dispatch(setQuestionModalOpen(false))
+    setIsSubmitting(true)
+
+    try {
+      await questionsAPI.createQuestion({
+        title: title.trim(),
+        content,
+        category,
+        tags,
+      })
+
+      toast.success("Question posted successfully!")
+
+      // Reset form
+      setTitle("")
+      setContent("")
+      setCategory("")
+      setTags([])
+
+      onClose()
+      onQuestionCreated?.()
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to post question")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(open) => dispatch(setQuestionModalOpen(open))}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-gray-200">
           <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -97,13 +124,27 @@ export function QuestionModal({ open }: QuestionModalProps) {
               required
               className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-500">{title.length}/150 characters</p>
+            <p className="text-xs text-gray-500">{title.length}/200 characters</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content" className="text-sm font-medium text-gray-900">
-              Question Details *
-            </Label>
+            <Label className="text-sm font-medium text-gray-900">Category *</Label>
+            <Select value={category} onValueChange={setCategory} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-900">Question Details *</Label>
             <RichTextEditor
               value={content}
               onChange={setContent}
@@ -121,14 +162,14 @@ export function QuestionModal({ open }: QuestionModalProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => dispatch(setQuestionModalOpen(false))}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              onClick={onClose}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !content.trim() || isSubmitting}
+              disabled={!title.trim() || !content.trim() || !category || isSubmitting}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
               {isSubmitting ? "Publishing..." : "Publish Question"}

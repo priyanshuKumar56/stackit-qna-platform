@@ -5,6 +5,7 @@ export interface Comment {
   questionId: string
   parentId: string | null
   author: {
+    id: string // Added author ID
     name: string
     avatar: string
     reputation: number

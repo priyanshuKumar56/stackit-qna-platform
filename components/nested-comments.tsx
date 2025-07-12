@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react" // Added useEffect
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { ThumbsUp, MessageSquare, MoreHorizontal } from "lucide-react"
+import { ThumbsUp, MessageSquare, MoreHorizontal } from "lucide-react" // Added ArrowUp, ArrowDown
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { addComment, updateCommentVotes } from "@/store/commentsSlice"
+import { setCurrentUser, updateUserReputation } from "@/store/usersSlice" // Import setCurrentUser, updateUserReputation
 import type { Comment } from "@/store/commentsSlice"
 
 interface NestedCommentsProps {
@@ -21,25 +22,40 @@ interface CommentItemProps {
 
 function CommentItem({ comment, level }: CommentItemProps) {
   const dispatch = useAppDispatch()
+  const { currentUser } = useAppSelector((state) => state.users) // Get currentUser from store
   const [isReplying, setIsReplying] = useState(false)
   const [replyContent, setReplyContent] = useState("")
   const [showReplies, setShowReplies] = useState(true)
 
+  // For demonstration, set a default current user if not already set
+  useEffect(() => {
+    if (!currentUser) {
+      dispatch(setCurrentUser("user-1")) // Set 'user-1' as the default current user
+    }
+  }, [currentUser, dispatch])
+
   const handleVote = () => {
     dispatch(updateCommentVotes({ id: comment.id, votes: comment.votes + 1 }))
+    // Optionally update the author's reputation
+    dispatch(updateUserReputation({ userId: comment.author.id, amount: 2 })) // Example: +2 rep for comment upvote
   }
 
   const handleReply = () => {
     if (!replyContent.trim()) return
+    if (!currentUser) {
+      console.error("No current user found to submit reply.")
+      return
+    }
 
     const newReply = {
       id: Date.now().toString(),
       questionId: comment.questionId,
       parentId: comment.id,
       author: {
-        name: "Current User",
-        avatar: "/placeholder.svg",
-        reputation: 100,
+        id: currentUser.id, // Use current user's ID
+        name: currentUser.name,
+        avatar: currentUser.avatar,
+        reputation: currentUser.reputation,
       },
       content: replyContent,
       timestamp: "just now",
@@ -48,6 +64,7 @@ function CommentItem({ comment, level }: CommentItemProps) {
     }
 
     dispatch(addComment(newReply))
+    dispatch(updateUserReputation({ userId: currentUser.id, amount: 1 })) // Example: +1 rep for replying
     setReplyContent("")
     setIsReplying(false)
   }
@@ -114,7 +131,7 @@ function CommentItem({ comment, level }: CommentItemProps) {
                     className="min-h-[80px]"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleReply}>
+                    <Button size="sm" onClick={handleReply} disabled={!replyContent.trim() || !currentUser}>
                       Reply
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setIsReplying(false)}>
@@ -139,7 +156,7 @@ export function NestedComments({ questionId }: NestedCommentsProps) {
 
   if (questionComments.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500 bg-white shadow-sm rounded-lg">
+      <div className="text-center py-8 text-gray-500">
         <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
         <h3 className="text-lg font-medium mb-2">0 replies</h3>
         <p>Be the first to reply!</p>

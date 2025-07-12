@@ -67,7 +67,7 @@ export function MainContent() {
   }
 
   return (
-    <div className="p-6 pt-8 mt-9 bg-gray-50 ">
+    <div className="p-6 pt-8 bg-gray-50 min-h-screen">
       <div className="max-w-6xl mx-auto">
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">

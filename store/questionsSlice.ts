@@ -5,6 +5,7 @@ export interface Question {
   title: string
   content: string
   author: {
+    id: string // Added author ID
     name: string
     avatar: string
     badge: string
@@ -34,6 +35,7 @@ const initialState: QuestionsState = {
       title: "What is Binance Referral Code",
       content: "Binance Referral Code is CPA_001BOE2Q3Q. Create an account",
       author: {
+        id: "user-2", // Linked to user-2
         name: "HarHarMahadev108",
         avatar: "/placeholder.svg",
         badge: "New Participant",
@@ -53,6 +55,7 @@ const initialState: QuestionsState = {
       content:
         "Livpure Smart Referral Code - FQQIUF | Use it while registering to instant discount on subscriptions. - Sign Up to Get 30 Days Free. - Zero Machine Cost With all plans.",
       author: {
+        id: "user-2", // Linked to user-2
         name: "HarHarMahadev108",
         avatar: "/placeholder.svg",
         badge: "New Participant",
@@ -72,6 +75,7 @@ const initialState: QuestionsState = {
       content:
         "I need help setting up authentication in my Next.js 14 application using the new App Router. What are the best practices?",
       author: {
+        id: "user-3", // Linked to user-3
         name: "DevExpert",
         avatar: "/placeholder.svg",
         badge: "Expert",
