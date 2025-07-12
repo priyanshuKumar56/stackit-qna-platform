@@ -139,7 +139,7 @@ export function NestedComments({ questionId }: NestedCommentsProps) {
 
   if (questionComments.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-gray-500 bg-white shadow-sm rounded-lg">
         <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
         <h3 className="text-lg font-medium mb-2">0 replies</h3>
         <p>Be the first to reply!</p>
