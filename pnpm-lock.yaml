@@ -159,7 +159,7 @@ importers:
         specifier: 1.4.1
         version: 1.4.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       js-cookie:
-        specifier: latest
+        specifier: ^3.0.5
         version: 3.0.5
       jsonwebtoken:
         specifier: latest

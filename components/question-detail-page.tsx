@@ -17,7 +17,7 @@ interface QuestionDetailPageProps {
 
 export function QuestionDetailPage({ questionId }: QuestionDetailPageProps) {
   const dispatch = useAppDispatch()
-  const { isAuthenticated } = useAuthStore()
+  // const { isAuthenticated } = useAuthStore()
   const { currentQuestion, loading, error } = useAppSelector((state) => state.questions)
   const { comments } = useAppSelector((state) => state.comments)
   const { currentUser } = useAppSelector((state) => state.users)
@@ -28,16 +28,16 @@ export function QuestionDetailPage({ questionId }: QuestionDetailPageProps) {
     dispatch(fetchComments(questionId))
 
     // Fetch current user if authenticated
-    if (isAuthenticated && !currentUser) {
-      dispatch(fetchCurrentUser())
-    }
+    // if (isAuthenticated && !currentUser) {
+    //   dispatch(fetchCurrentUser())
+    // }
 
     // Cleanup when component unmounts
     return () => {
       dispatch(clearCurrentQuestion())
       dispatch(clearComments())
     }
-  }, [questionId, dispatch, isAuthenticated, currentUser])
+  }, [questionId, dispatch, currentUser])
 
   if (loading) {
     return (

@@ -10,7 +10,7 @@ import { ChevronUp, ChevronDown, MessageSquare, MoreHorizontal, Check, User } fr
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { voteOnComment, createComment, acceptAnswer } from "@/store/commentsSlice"
 import { updateUserReputation, incrementUserStats } from "@/store/usersSlice"
-import { useAuthStore } from "@/lib/auth"
+import { useAuthStore } from "@/lib/useAuthStore"
 import toast from "react-hot-toast"
 import type { Comment } from "@/store/commentsSlice"
 
@@ -21,7 +21,7 @@ interface NestedCommentsProps {
 
 export function NestedComments({ comments, questionId }: NestedCommentsProps) {
   const dispatch = useAppDispatch()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated ,  } = useAuthStore()
   const { currentUser } = useAppSelector((state) => state.users)
   const { submitting } = useAppSelector((state) => state.comments)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)

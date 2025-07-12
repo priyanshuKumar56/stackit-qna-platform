@@ -36,11 +36,11 @@ interface QuestionDetailProps {
 
 export function QuestionDetail({ question, comments }: QuestionDetailProps) {
   const dispatch = useAppDispatch()
-  const { isAuthenticated } = useAuthStore()
-  const { currentUser } = useAppSelector((state) => state.users)
+  
+  // Use the useAuthStore hook - now it uses Redux users slice
+  const { isAuthenticated, user: currentUser } = useAuthStore()
   const { submitting } = useAppSelector((state) => state.comments)
   const { relatedQuestions } = useAppSelector((state) => state.questions)
-  console.log(currentUser)
 
   const [newComment, setNewComment] = useState("")
 

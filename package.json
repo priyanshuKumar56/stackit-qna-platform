@@ -59,7 +59,7 @@
     "http": "latest",
     "immer": "latest",
     "input-otp": "1.4.1",
-    "js-cookie": "latest",
+    "js-cookie": "^3.0.5",
     "jsonwebtoken": "latest",
     "lucide-react": "^0.454.0",
     "mongoose": "latest",
