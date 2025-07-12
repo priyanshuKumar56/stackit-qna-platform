@@ -84,29 +84,12 @@ export function Header() {
             <Button variant="ghost" className="text-gray-700 hover:text-blue-600 hover:bg-blue-50">
               Academy
             </Button>
-            <Button variant="ghost" className="text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-              Developer Hub
-            </Button>
-            <Button variant="ghost" className="text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-              Partner Hub
-            </Button>
-            <Button variant="ghost" className="text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-              Hire an Expert
-            </Button>
+            
           </nav>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search questions, tags, or users..."
-              value={searchQuery}
-              onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-              className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-
+         
           <Button
             onClick={() => dispatch(setQuestionModalOpen(true))}
             className="bg-blue-600 hover:bg-blue-700 gap-2 shadow-sm font-medium"

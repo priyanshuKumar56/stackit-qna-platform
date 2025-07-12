@@ -23,6 +23,7 @@ export function QuestionDetailPage({ questionId }: QuestionDetailPageProps) {
   const { currentUser } = useAppSelector((state) => state.users)
 
   useEffect(() => {
+    console.log("Fetching question and comments for ID:", questionId)
     // Fetch question and comments when component mounts
     dispatch(fetchQuestion(questionId))
     dispatch(fetchComments(questionId))

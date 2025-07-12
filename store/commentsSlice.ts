@@ -37,7 +37,9 @@ const initialState: CommentsState = {
 
 // Async thunks for API calls
 export const fetchComments = createAsyncThunk("comments/fetchComments", async (questionId: string) => {
+  // console.log("Fetching comments for question ID:", questionId)
   const response = await commentsAPI.getComments(questionId)
+  // console.log("Fetched comments:", response)
   return response.data
 })
 

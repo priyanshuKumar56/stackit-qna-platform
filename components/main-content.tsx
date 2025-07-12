@@ -126,14 +126,7 @@ export function MainContent() {
             <p className="text-gray-600 mt-1">{totalQuestions} questions found</p>
           </div>
 
-          {isAuthenticated && (
-            <Link href="/ask">
-              <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                <Plus className="w-4 h-4" />
-                Ask Question
-              </Button>
-            </Link>
-          )}
+
         </div>
 
         {/* Search and Filters */}

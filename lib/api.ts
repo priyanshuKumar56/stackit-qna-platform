@@ -79,7 +79,7 @@ export const questionsAPI = {
 
 // Comments API
 export const commentsAPI = {
-  getComments: (questionId: string) => api.get(`/questions/${questionId}/comments`),
+  getComments: (questionId: string) => api.get(`comments/question/${questionId}`),
   
   createComment: (data: {
     content: string
