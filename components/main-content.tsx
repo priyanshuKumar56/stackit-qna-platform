@@ -2,7 +2,9 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+
+import { useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,30 +12,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { ArrowUp, MessageSquare, Eye, Clock, CheckCircle, Filter, TrendingUp, Search, Plus } from "lucide-react"
-import { questionsAPI } from "@/lib/api"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import {
+  fetchQuestions,
+  setFilter,
+  setSearchQuery,
+  setCurrentPage,
+  incrementQuestionViews,
+} from "@/store/questionsSlice"
 import { useAuthStore } from "@/lib/auth"
 import Link from "next/link"
 import toast from "react-hot-toast"
-
-interface Question {
-  id: string
-  title: string
-  content: string
-  author: {
-    id: string
-    name: string
-    avatar: string
-    badge: string
-    reputation: number
-  }
-  category: string
-  tags: string[]
-  votes: number
-  replies: number
-  views: number
-  timestamp: string
-  hasAcceptedAnswer: boolean
-}
 
 const tabs = [
   { id: "recent", label: "Recent", icon: Clock },
@@ -58,51 +47,52 @@ const categories = [
 ]
 
 export function MainContent() {
+  const dispatch = useAppDispatch()
   const { isAuthenticated } = useAuthStore()
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("recent")
+  const { questions, loading, error, filter, searchQuery, currentPage, totalPages, totalQuestions } = useAppSelector(
+    (state) => state.questions,
+  )
+
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [sortBy, setSortBy] = useState("recent")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery)
 
   useEffect(() => {
-    fetchQuestions()
-  }, [activeTab, selectedCategory, sortBy, searchQuery, currentPage])
+    loadQuestions()
+  }, [filter, currentPage, selectedCategory, sortBy])
 
-  const fetchQuestions = async () => {
-    try {
-      setLoading(true)
-      const params = {
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+    }
+  }, [error])
+
+  const loadQuestions = () => {
+    dispatch(
+      fetchQuestions({
         page: currentPage,
         limit: 10,
         category: selectedCategory !== "all" ? selectedCategory : undefined,
         search: searchQuery || undefined,
         sort: sortBy,
-        filter: activeTab,
-      }
-
-      const response = await questionsAPI.getQuestions(params)
-      setQuestions(response.data.questions)
-      setTotalPages(response.data.pagination.pages)
-    } catch (error: any) {
-      console.error("Failed to fetch questions:", error)
-      toast.error("Failed to load questions")
-    } finally {
-      setLoading(false)
-    }
+        filter: filter,
+      }),
+    )
   }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setCurrentPage(1)
-    fetchQuestions()
+    dispatch(setSearchQuery(localSearchQuery))
+    dispatch(setCurrentPage(1))
+    loadQuestions()
+  }
+
+  const handleQuestionClick = (questionId: string) => {
+    dispatch(incrementQuestionViews(questionId))
   }
 
   const getFilterTitle = () => {
-    switch (activeTab) {
+    switch (filter) {
       case "recent":
         return "Recent Questions"
       case "trending":
@@ -133,7 +123,7 @@ export function MainContent() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{getFilterTitle()}</h1>
-            <p className="text-gray-600 mt-1">{questions.length} questions found</p>
+            <p className="text-gray-600 mt-1">{totalQuestions} questions found</p>
           </div>
 
           {isAuthenticated && (
@@ -153,8 +143,8 @@ export function MainContent() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search questions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -167,12 +157,9 @@ export function MainContent() {
               {tabs.map((tab) => (
                 <Button
                   key={tab.id}
-                  variant={activeTab === tab.id ? "default" : "ghost"}
+                  variant={filter === tab.id ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => {
-                    setActiveTab(tab.id)
-                    setCurrentPage(1)
-                  }}
+                  onClick={() => dispatch(setFilter(tab.id))}
                   className="gap-2"
                 >
                   <tab.icon className="w-4 h-4" />
@@ -186,7 +173,7 @@ export function MainContent() {
               value={selectedCategory}
               onValueChange={(value) => {
                 setSelectedCategory(value)
-                setCurrentPage(1)
+                dispatch(setCurrentPage(1))
               }}
             >
               <SelectTrigger className="w-48">
@@ -264,7 +251,7 @@ export function MainContent() {
                       </div>
                     </div>
 
-                    <Link href={`/question/${question.id}`}>
+                    <Link href={`/question/${question.id}`} onClick={() => handleQuestionClick(question.id)}>
                       <h3 className="font-semibold text-lg mb-3 hover:text-blue-600 cursor-pointer text-gray-900 leading-tight">
                         {question.title}
                       </h3>
@@ -326,7 +313,7 @@ export function MainContent() {
           <div className="flex justify-center gap-2 mt-8">
             <Button
               variant="outline"
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              onClick={() => dispatch(setCurrentPage(Math.max(1, currentPage - 1)))}
               disabled={currentPage === 1}
             >
               Previous
@@ -338,7 +325,7 @@ export function MainContent() {
                 <Button
                   key={page}
                   variant={currentPage === page ? "default" : "outline"}
-                  onClick={() => setCurrentPage(page)}
+                  onClick={() => dispatch(setCurrentPage(page))}
                 >
                   {page}
                 </Button>
@@ -347,7 +334,7 @@ export function MainContent() {
 
             <Button
               variant="outline"
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              onClick={() => dispatch(setCurrentPage(Math.min(totalPages, currentPage + 1)))}
               disabled={currentPage === totalPages}
             >
               Next

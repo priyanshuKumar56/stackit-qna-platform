@@ -1,140 +1,263 @@
 "use client"
 
-import { useEffect, useState } from "react" // Added useEffect
+import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { ThumbsUp, MessageSquare, MoreHorizontal } from "lucide-react" // Added ArrowUp, ArrowDown
+import { Badge } from "@/components/ui/badge"
+import { TipTapEditor } from "./tiptap-editor"
+import { ChevronUp, ChevronDown, MessageSquare, MoreHorizontal, Check, User } from "lucide-react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { addComment, updateCommentVotes } from "@/store/commentsSlice"
-import { setCurrentUser, updateUserReputation } from "@/store/usersSlice" // Import setCurrentUser, updateUserReputation
+import { voteOnComment, createComment, acceptAnswer } from "@/store/commentsSlice"
+import { updateUserReputation, incrementUserStats } from "@/store/usersSlice"
+import { useAuthStore } from "@/lib/auth"
+import toast from "react-hot-toast"
 import type { Comment } from "@/store/commentsSlice"
 
 interface NestedCommentsProps {
+  comments: Comment[]
   questionId: string
 }
 
-interface CommentItemProps {
-  comment: Comment
-  level: number
-}
-
-function CommentItem({ comment, level }: CommentItemProps) {
+export function NestedComments({ comments, questionId }: NestedCommentsProps) {
   const dispatch = useAppDispatch()
-  const { currentUser } = useAppSelector((state) => state.users) // Get currentUser from store
-  const [isReplying, setIsReplying] = useState(false)
+  const { isAuthenticated } = useAuthStore()
+  const { currentUser } = useAppSelector((state) => state.users)
+  const { submitting } = useAppSelector((state) => state.comments)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState("")
-  const [showReplies, setShowReplies] = useState(true)
 
-  // For demonstration, set a default current user if not already set
-  useEffect(() => {
-    if (!currentUser) {
-      dispatch(setCurrentUser("user-1")) // Set 'user-1' as the default current user
-    }
-  }, [currentUser, dispatch])
-
-  const handleVote = () => {
-    dispatch(updateCommentVotes({ id: comment.id, votes: comment.votes + 1 }))
-    // Optionally update the author's reputation
-    dispatch(updateUserReputation({ userId: comment.author.id, amount: 2 })) // Example: +2 rep for comment upvote
-  }
-
-  const handleReply = () => {
-    if (!replyContent.trim()) return
-    if (!currentUser) {
-      console.error("No current user found to submit reply.")
+  const handleVote = async (commentId: string, voteType: "upvote" | "downvote") => {
+    if (!isAuthenticated) {
+      toast.error("Please login to vote")
       return
     }
 
-    const newReply = {
-      id: Date.now().toString(),
-      questionId: comment.questionId,
-      parentId: comment.id,
-      author: {
-        id: currentUser.id, // Use current user's ID
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        reputation: currentUser.reputation,
-      },
-      content: replyContent,
-      timestamp: "just now",
-      votes: 0,
-      replies: [],
-    }
+    try {
+      await dispatch(voteOnComment({ commentId, voteType })).unwrap()
 
-    dispatch(addComment(newReply))
-    dispatch(updateUserReputation({ userId: currentUser.id, amount: 1 })) // Example: +1 rep for replying
-    setReplyContent("")
-    setIsReplying(false)
+      // Find comment author and update reputation
+      const findCommentAuthor = (comments: Comment[]): string | null => {
+        for (const comment of comments) {
+          if (comment.id === commentId) {
+            return comment.author.id
+          }
+          const authorId = findCommentAuthor(comment.replies)
+          if (authorId) return authorId
+        }
+        return null
+      }
+
+      const authorId = findCommentAuthor(comments)
+      if (authorId) {
+        const reputationChange = voteType === "upvote" ? 2 : -1
+        dispatch(updateUserReputation({ userId: authorId, amount: reputationChange }))
+      }
+
+      toast.success("Vote recorded!")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to vote")
+    }
   }
 
-  return (
-    <div className={`${level > 0 ? "ml-8 mt-4" : ""}`}>
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <div className="flex gap-3">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={comment.author.avatar || "/placeholder.svg"} />
-              <AvatarFallback>
-                {comment.author.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
+  const handleReply = async (parentId: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please login to reply")
+      return
+    }
 
+    if (!replyContent.trim()) {
+      toast.error("Please enter a reply")
+      return
+    }
+
+    try {
+      await dispatch(
+        createComment({
+          content: replyContent,
+          questionId,
+          parentCommentId: parentId,
+        }),
+      ).unwrap()
+
+      setReplyContent("")
+      setReplyingTo(null)
+
+      // Update user stats
+      if (currentUser) {
+        dispatch(incrementUserStats({ userId: currentUser.id, type: "answers" }))
+        dispatch(updateUserReputation({ userId: currentUser.id, amount: 1 }))
+      }
+
+      toast.success("Reply posted successfully!")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to post reply")
+    }
+  }
+
+  const handleAcceptAnswer = async (commentId: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please login to accept answers")
+      return
+    }
+
+    try {
+      await dispatch(acceptAnswer(commentId)).unwrap()
+
+      // Find comment author and update reputation for accepted answer
+      const findCommentAuthor = (comments: Comment[]): string | null => {
+        for (const comment of comments) {
+          if (comment.id === commentId) {
+            return comment.author.id
+          }
+          const authorId = findCommentAuthor(comment.replies)
+          if (authorId) return authorId
+        }
+        return null
+      }
+
+      const authorId = findCommentAuthor(comments)
+      if (authorId) {
+        dispatch(updateUserReputation({ userId: authorId, amount: 15 })) // Bonus for accepted answer
+        dispatch(incrementUserStats({ userId: authorId, type: "acceptedAnswers" }))
+      }
+
+      toast.success("Answer accepted!")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to accept answer")
+    }
+  }
+
+  const renderComment = (comment: Comment, isReply = false) => (
+    <div key={comment.id} className={`${isReply ? "ml-12 mt-4" : "mb-6"}`}>
+      <Card className={`${comment.isAccepted ? "border-green-200 bg-green-50" : "border-gray-200"}`}>
+        <CardContent className="p-6">
+          <div className="flex gap-4">
+            {/* Vote Section */}
+            <div className="flex flex-col items-center gap-1 min-w-[60px]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleVote(comment.id, "upvote")}
+                disabled={!isAuthenticated}
+                className={`h-8 w-8 p-0 hover:bg-green-50 hover:text-green-600 ${
+                  comment.userVote === "upvote" ? "bg-green-50 text-green-600" : "text-gray-600"
+                }`}
+              >
+                <ChevronUp className="w-4 h-4" />
+              </Button>
+
+              <span
+                className={`text-lg font-semibold ${
+                  comment.votes > 0 ? "text-green-600" : comment.votes < 0 ? "text-red-600" : "text-gray-600"
+                }`}
+              >
+                {comment.votes}
+              </span>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleVote(comment.id, "downvote")}
+                disabled={!isAuthenticated}
+                className={`h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 ${
+                  comment.userVote === "downvote" ? "bg-red-50 text-red-600" : "text-gray-600"
+                }`}
+              >
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+
+              {comment.isAccepted && (
+                <div className="mt-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-600" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Comment Content */}
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-medium text-blue-600">{comment.author.name}</span>
-                <span className="text-sm text-gray-500">• {comment.timestamp}</span>
-                <span className="text-sm text-gray-500">• {comment.author.reputation} rep</span>
-              </div>
+              {comment.isAccepted && (
+                <Badge className="bg-green-100 text-green-800 border-green-200 mb-3">✓ Accepted Answer</Badge>
+              )}
 
-              <p className="text-gray-700 mb-3">{comment.content}</p>
+              <div className="prose prose-sm max-w-none mb-4" dangerouslySetInnerHTML={{ __html: comment.content }} />
 
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" className="gap-1 text-gray-500" onClick={handleVote}>
-                  <ThumbsUp className="w-4 h-4" />
-                  {comment.votes}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-gray-500"
-                  onClick={() => setIsReplying(!isReplying)}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Reply
-                </Button>
-                {comment.replies.length > 0 && (
+              {/* Author and Actions */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={comment.author.avatar || "/placeholder.svg"} />
+                    <AvatarFallback>
+                      <User className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <span className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
+                      {comment.author.name}
+                    </span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      {comment.author.reputation} rep • {comment.timestamp}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!comment.isAccepted && currentUser && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleAcceptAnswer(comment.id)}
+                      className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <Check className="w-4 h-4" />
+                      Accept
+                    </Button>
+                  )}
+
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-gray-500"
-                    onClick={() => setShowReplies(!showReplies)}
+                    onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                    className="gap-1 text-gray-500 hover:text-gray-700"
                   >
-                    {showReplies ? "Hide" : "Show"} {comment.replies.length} replies
+                    <MessageSquare className="w-4 h-4" />
+                    Reply
                   </Button>
-                )}
-                <Button variant="ghost" size="sm" className="text-gray-500">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
-              {isReplying && (
-                <div className="mt-4 space-y-3">
-                  <Textarea
-                    placeholder="Write a reply..."
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    className="min-h-[80px]"
+              {/* Reply Form */}
+              {replyingTo === comment.id && (
+                <div className="mt-4 space-y-3 p-4 bg-gray-50 rounded-lg">
+                  <TipTapEditor
+                    content={replyContent}
+                    onChange={setReplyContent}
+                    placeholder="Write your reply..."
+                    className="min-h-[100px]"
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleReply} disabled={!replyContent.trim() || !currentUser}>
-                      Reply
+                    <Button
+                      size="sm"
+                      onClick={() => handleReply(comment.id)}
+                      disabled={!replyContent.trim() || submitting}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {submitting ? "Posting..." : "Post Reply"}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setIsReplying(false)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setReplyingTo(null)
+                        setReplyContent("")
+                      }}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -145,31 +268,12 @@ function CommentItem({ comment, level }: CommentItemProps) {
         </CardContent>
       </Card>
 
-      {showReplies && comment.replies.map((reply) => <CommentItem key={reply.id} comment={reply} level={level + 1} />)}
+      {/* Render Replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="ml-8 mt-4 space-y-4">{comment.replies.map((reply) => renderComment(reply, true))}</div>
+      )}
     </div>
   )
-}
 
-export function NestedComments({ questionId }: NestedCommentsProps) {
-  const { comments } = useAppSelector((state) => state.comments)
-  const questionComments = comments.filter((comment) => comment.questionId === questionId && !comment.parentId)
-
-  if (questionComments.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-        <h3 className="text-lg font-medium mb-2">0 replies</h3>
-        <p>Be the first to reply!</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Replies ({questionComments.length})</h3>
-      {questionComments.map((comment) => (
-        <CommentItem key={comment.id} comment={comment} level={0} />
-      ))}
-    </div>
-  )
+  return <div className="space-y-6">{comments.map((comment) => renderComment(comment))}</div>
 }

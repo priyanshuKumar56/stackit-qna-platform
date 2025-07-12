@@ -1,9 +1,7 @@
 import axios from "axios"
-import Cookies from "js-cookie"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -13,7 +11,7 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("auth-token")
+  const token = localStorage.getItem("token")
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -25,22 +23,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      Cookies.remove("auth-token")
+      localStorage.removeItem("token")
       window.location.href = "/login"
     }
     return Promise.reject(error)
   },
 )
-
-// Auth API
-export const authAPI = {
-  register: (data: { name: string; username: string; email: string; password: string }) =>
-    api.post("/auth/register", data),
-
-  login: (data: { email: string; password: string }) => api.post("/auth/login", data),
-
-  getCurrentUser: () => api.get("/auth/me"),
-}
 
 // Questions API
 export const questionsAPI = {
@@ -48,7 +36,6 @@ export const questionsAPI = {
     page?: number
     limit?: number
     category?: string
-    tags?: string
     search?: string
     sort?: string
     filter?: string
@@ -63,19 +50,28 @@ export const questionsAPI = {
     tags: string[]
   }) => api.post("/questions", data),
 
-  subscribeToQuestion: (id: string) => api.post(`/questions/${id}/subscribe`),
+  updateQuestion: (id: string, data: any) => api.put(`/questions/${id}`, data),
 
-  unsubscribeFromQuestion: (id: string) => api.delete(`/questions/${id}/subscribe`),
+  deleteQuestion: (id: string) => api.delete(`/questions/${id}`),
 
   bookmarkQuestion: (id: string) => api.post(`/questions/${id}/bookmark`),
 
   removeBookmark: (id: string) => api.delete(`/questions/${id}/bookmark`),
+
+  subscribeToQuestion: (id: string) => api.post(`/questions/${id}/subscribe`),
+
+  unsubscribeFromQuestion: (id: string) => api.delete(`/questions/${id}/subscribe`),
+
+  searchQuestions: (params: {
+    query: string
+    page?: number
+    category?: string
+  }) => api.get("/questions/search", { params }),
 }
 
 // Comments API
 export const commentsAPI = {
-  getComments: (questionId: string, params?: { page?: number; limit?: number }) =>
-    api.get(`/comments/question/${questionId}`, { params }),
+  getComments: (questionId: string) => api.get(`/questions/${questionId}/comments`),
 
   createComment: (data: {
     content: string
@@ -83,7 +79,11 @@ export const commentsAPI = {
     parentCommentId?: string
   }) => api.post("/comments", data),
 
-  acceptAnswer: (commentId: string) => api.post(`/comments/${commentId}/accept`),
+  updateComment: (id: string, data: { content: string }) => api.put(`/comments/${id}`, data),
+
+  deleteComment: (id: string) => api.delete(`/comments/${id}`),
+
+  acceptAnswer: (id: string) => api.post(`/comments/${id}/accept`),
 }
 
 // Votes API
@@ -94,21 +94,59 @@ export const votesAPI = {
     voteType: "upvote" | "downvote"
   }) => api.post("/votes", data),
 
-  getUserVote: (targetType: string, targetId: string) => api.get(`/votes/${targetType}/${targetId}`),
+  getVotes: (targetId: string, targetType: string) => api.get(`/votes/${targetType}/${targetId}`),
 }
 
 // Users API
 export const usersAPI = {
-  getUser: (id: string) => api.get(`/users/${id}`),
+  getCurrentUser: () => api.get("/users/me"),
+
+  getUserProfile: (id: string) => api.get(`/users/${id}`),
 
   updateProfile: (data: {
-    name: string
-    bio: string
-    location: string
-    website: string
+    name?: string
+    bio?: string
+    location?: string
+    website?: string
+    avatar?: string
   }) => api.put("/users/profile", data),
 
-  getLeaderboard: (params?: { type?: string; limit?: number }) => api.get("/users/leaderboard/top", { params }),
+  getLeaderboard: (params: {
+    period?: "week" | "month" | "year" | "all"
+    limit?: number
+  }) => api.get("/users/leaderboard", { params }),
+
+  followUser: (id: string) => api.post(`/users/${id}/follow`),
+
+  unfollowUser: (id: string) => api.delete(`/users/${id}/follow`),
+
+  searchUsers: (params: {
+    query: string
+    page?: number
+    limit?: number
+  }) => api.get("/users/search", { params }),
+}
+
+// Auth API
+export const authAPI = {
+  login: (data: { email: string; password: string }) => api.post("/auth/login", data),
+
+  register: (data: {
+    name: string
+    email: string
+    password: string
+  }) => api.post("/auth/register", data),
+
+  logout: () => api.post("/auth/logout"),
+
+  refreshToken: () => api.post("/auth/refresh"),
+
+  forgotPassword: (data: { email: string }) => api.post("/auth/forgot-password", data),
+
+  resetPassword: (data: {
+    token: string
+    password: string
+  }) => api.post("/auth/reset-password", data),
 }
 
 export default api

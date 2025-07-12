@@ -1,151 +1,268 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit"
+import { usersAPI } from "@/lib/api"
 
 export interface User {
   id: string
   name: string
-  username: string
   email: string
-  bio: string
-  location: string
-  website: string
-  joinDate: string
   avatar: string
   reputation: number
+  badge: string
+  bio?: string
+  location?: string
+  website?: string
+  joinedAt: string
   questionsCount: number
   answersCount: number
-  votesReceived: number
-  viewsCount: number
-  badges: {
-    gold: number
-    silver: number
-    bronze: number
-  }
+  acceptedAnswersCount: number
+  badges: string[]
+  isFollowing?: boolean
 }
 
 interface UsersState {
-  users: User[]
   currentUser: User | null
+  users: User[]
+  userProfile: User | null
+  leaderboard: User[]
   loading: boolean
+  error: string | null
 }
 
 const initialState: UsersState = {
-  users: [
-    {
-      id: "user-1",
-      name: "John Doe",
-      username: "johndoe",
-      email: "john.doe@example.com",
-      bio: "Full-stack developer passionate about React, Node.js, and building great user experiences. Always learning and sharing knowledge with the community.",
-      location: "San Francisco, CA",
-      website: "https://johndoe.dev",
-      joinDate: "January 2023",
-      avatar: "/placeholder.svg",
-      reputation: 1250,
-      questionsCount: 23,
-      answersCount: 87,
-      votesReceived: 156,
-      viewsCount: 12500,
-      badges: {
-        gold: 2,
-        silver: 8,
-        bronze: 15,
-      },
-    },
-    {
-      id: "user-2",
-      name: "HarHarMahadev108",
-      username: "harharmahadev108",
-      email: "harhar@example.com",
-      bio: "Enthusiast in crypto and referral programs.",
-      location: "India",
-      website: "",
-      joinDate: "March 2024",
-      avatar: "/placeholder.svg",
-      reputation: 10,
-      questionsCount: 3,
-      answersCount: 0,
-      votesReceived: 0,
-      viewsCount: 43,
-      badges: {
-        gold: 0,
-        silver: 0,
-        bronze: 1,
-      },
-    },
-    {
-      id: "user-3",
-      name: "DevExpert",
-      username: "devexpert",
-      email: "dev@example.com",
-      bio: "Experienced software engineer specializing in Next.js and modern web development.",
-      location: "New York, NY",
-      website: "https://devexpert.com",
-      joinDate: "October 2022",
-      avatar: "/placeholder.svg",
-      reputation: 1250,
-      questionsCount: 1,
-      answersCount: 7,
-      votesReceived: 15,
-      viewsCount: 234,
-      badges: {
-        gold: 1,
-        silver: 3,
-        bronze: 5,
-      },
-    },
-  ],
-  currentUser: null, // This will be set based on a logged-in user, for now we'll use user-1 as default
+  currentUser: null,
+  users: [],
+  userProfile: null,
+  leaderboard: [],
   loading: false,
+  error: null,
 }
+
+// Async thunks for API calls
+export const fetchCurrentUser = createAsyncThunk("users/fetchCurrentUser", async () => {
+  const response = await usersAPI.getCurrentUser()
+  return response.data
+})
+
+export const fetchUserProfile = createAsyncThunk("users/fetchUserProfile", async (userId: string) => {
+  const response = await usersAPI.getUserProfile(userId)
+  return response.data
+})
+
+export const updateUserProfile = createAsyncThunk(
+  "users/updateUserProfile",
+  async (updateData: {
+    name?: string
+    bio?: string
+    location?: string
+    website?: string
+    avatar?: string
+  }) => {
+    const response = await usersAPI.updateProfile(updateData)
+    return response.data
+  },
+)
+
+export const fetchLeaderboard = createAsyncThunk(
+  "users/fetchLeaderboard",
+  async (params: {
+    period?: "week" | "month" | "year" | "all"
+    limit?: number
+  }) => {
+    const response = await usersAPI.getLeaderboard(params)
+    return response.data
+  },
+)
+
+export const followUser = createAsyncThunk("users/followUser", async (userId: string) => {
+  const response = await usersAPI.followUser(userId)
+  return { userId, isFollowing: response.data.isFollowing }
+})
+
+export const searchUsers = createAsyncThunk(
+  "users/searchUsers",
+  async (params: {
+    query: string
+    page?: number
+    limit?: number
+  }) => {
+    const response = await usersAPI.searchUsers(params)
+    return response.data
+  },
+)
 
 const usersSlice = createSlice({
   name: "users",
   initialState,
   reducers: {
-    setCurrentUser: (state, action: PayloadAction<string | null>) => {
-      state.currentUser = state.users.find((user) => user.id === action.payload) || null
+    clearCurrentUser: (state) => {
+      state.currentUser = null
     },
-    updateUserProfile: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.currentUser) {
-        state.currentUser = { ...state.currentUser, ...action.payload }
-        // Also update in the main users array
-        const index = state.users.findIndex((user) => user.id === state.currentUser?.id)
-        if (index !== -1) {
-          state.users[index] = state.currentUser
-        }
-      }
+    clearUserProfile: (state) => {
+      state.userProfile = null
     },
-    updateUserStats: (
-      state,
-      action: PayloadAction<{ userId: string; type: "question" | "answer" | "vote" | "view" }>,
-    ) => {
-      const user = state.users.find((u) => u.id === action.payload.userId)
-      if (user) {
-        switch (action.payload.type) {
-          case "question":
-            user.questionsCount += 1
-            break
-          case "answer":
-            user.answersCount += 1
-            break
-          case "vote":
-            user.votesReceived += 1
-            break
-          case "view":
-            user.viewsCount += 1
-            break
-        }
-        // For simplicity, reputation is not dynamically calculated here, but would be in a real app
-      }
+    clearError: (state) => {
+      state.error = null
     },
     updateUserReputation: (state, action: PayloadAction<{ userId: string; amount: number }>) => {
-      const user = state.users.find((u) => u.id === action.payload.userId)
-      if (user) {
-        user.reputation += action.payload.amount
+      const { userId, amount } = action.payload
+
+      // Update current user
+      if (state.currentUser && state.currentUser.id === userId) {
+        state.currentUser.reputation += amount
+      }
+
+      // Update user profile
+      if (state.userProfile && state.userProfile.id === userId) {
+        state.userProfile.reputation += amount
+      }
+
+      // Update in users list
+      const userIndex = state.users.findIndex((u) => u.id === userId)
+      if (userIndex !== -1) {
+        state.users[userIndex].reputation += amount
+      }
+
+      // Update in leaderboard
+      const leaderboardIndex = state.leaderboard.findIndex((u) => u.id === userId)
+      if (leaderboardIndex !== -1) {
+        state.leaderboard[leaderboardIndex].reputation += amount
+      }
+    },
+    incrementUserStats: (
+      state,
+      action: PayloadAction<{
+        userId: string
+        type: "questions" | "answers" | "acceptedAnswers"
+      }>,
+    ) => {
+      const { userId, type } = action.payload
+
+      const updateUserStats = (user: User) => {
+        switch (type) {
+          case "questions":
+            user.questionsCount += 1
+            break
+          case "answers":
+            user.answersCount += 1
+            break
+          case "acceptedAnswers":
+            user.acceptedAnswersCount += 1
+            break
+        }
+      }
+
+      // Update current user
+      if (state.currentUser && state.currentUser.id === userId) {
+        updateUserStats(state.currentUser)
+      }
+
+      // Update user profile
+      if (state.userProfile && state.userProfile.id === userId) {
+        updateUserStats(state.userProfile)
+      }
+
+      // Update in users list
+      const userIndex = state.users.findIndex((u) => u.id === userId)
+      if (userIndex !== -1) {
+        updateUserStats(state.users[userIndex])
       }
     },
   },
+  extraReducers: (builder) => {
+    // Fetch Current User
+    builder
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.loading = false
+        state.currentUser = action.payload.user
+      })
+      .addCase(fetchCurrentUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || "Failed to fetch current user"
+      })
+
+    // Fetch User Profile
+    builder
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.loading = false
+        state.userProfile = action.payload.user
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || "Failed to fetch user profile"
+      })
+
+    // Update User Profile
+    builder.addCase(updateUserProfile.fulfilled, (state, action) => {
+      const updatedUser = action.payload.user
+
+      // Update current user
+      if (state.currentUser && state.currentUser.id === updatedUser.id) {
+        state.currentUser = { ...state.currentUser, ...updatedUser }
+      }
+
+      // Update user profile
+      if (state.userProfile && state.userProfile.id === updatedUser.id) {
+        state.userProfile = { ...state.userProfile, ...updatedUser }
+      }
+    })
+
+    // Fetch Leaderboard
+    builder
+      .addCase(fetchLeaderboard.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchLeaderboard.fulfilled, (state, action) => {
+        state.loading = false
+        state.leaderboard = action.payload.users
+      })
+      .addCase(fetchLeaderboard.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || "Failed to fetch leaderboard"
+      })
+
+    // Follow User
+    builder.addCase(followUser.fulfilled, (state, action) => {
+      const { userId, isFollowing } = action.payload
+
+      // Update user profile
+      if (state.userProfile && state.userProfile.id === userId) {
+        state.userProfile.isFollowing = isFollowing
+      }
+
+      // Update in users list
+      const userIndex = state.users.findIndex((u) => u.id === userId)
+      if (userIndex !== -1) {
+        state.users[userIndex].isFollowing = isFollowing
+      }
+    })
+
+    // Search Users
+    builder
+      .addCase(searchUsers.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(searchUsers.fulfilled, (state, action) => {
+        state.loading = false
+        state.users = action.payload.users
+      })
+      .addCase(searchUsers.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || "Failed to search users"
+      })
+  },
 })
 
-export const { setCurrentUser, updateUserProfile, updateUserStats, updateUserReputation } = usersSlice.actions
+export const { clearCurrentUser, clearUserProfile, clearError, updateUserReputation, incrementUserStats } =
+  usersSlice.actions
+
 export default usersSlice.reducer
