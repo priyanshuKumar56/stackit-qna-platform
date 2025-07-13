@@ -6,8 +6,8 @@ import { Dashboard } from "@/components/dashboard"
 
 export default function HomePage() {
   return (
-    <Provider store={store}>
+    // <Provider store={store}>
       <Dashboard />
-    </Provider>
+    // </Provider>
   )
 }

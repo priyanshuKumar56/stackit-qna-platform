@@ -1,425 +1,354 @@
-"use client"
+import React, { useState } from 'react'
+import { User, Mail, MapPin, Globe, Award, MessageSquare, HelpCircle, Eye, ThumbsUp, Edit3, Camera, Star, Trophy, Medal, Loader } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
 
-import { useEffect, useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  MapPin,
-  Calendar,
-  LinkIcon,
-  Trophy,
-  MessageSquare,
-  ThumbsUp,
-  Edit,
-  ArrowUp,
-  ArrowDown,
-  Eye,
-  Clock,
-  CheckCircle,
-  Save,
-  Loader2,
-} from "lucide-react"
-
-import { useAuth } from "@/lib/auth"
-import Link from "next/link"
-
-interface UserProfileProps {
-  userId?: string
-}
-
-interface User {
-  id: string
-  name: string
-  username: string
-  email: string
-  avatar: string
-  bio: string
-  location: string
-  website: string
-  joinDate: string
-  reputation: number
-  questionsCount: number
-  answersCount: number
-  viewsCount: number
-  votesReceived: number
-  badges: {
-    gold: number
-    silver: number
-    bronze: number
-  }
-  questions: any[]
-  answers: any[]
-}
-
-export function UserProfile({ userId }: UserProfileProps) {
-  const { user: currentUser, isAuthenticated, isReady } = useAuth()
+function UserProfile() {
+  const { user, isLoading } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState({
-    name: "",
-    bio: "",
-    location: "",
-    website: ""
-  })
-  const [isSaving, setIsSaving] = useState(false)
-
-  // Determine if this is the user's own profile
-  const isOwnProfile = !userId || userId === currentUser?.id
-
-  // The user to display (either current user or fetched user)
+  const [activeTab, setActiveTab] = useState('overview')
   
-  const displayUser = currentUser 
-  console.log("Current user:", )
+  console.log("User Profile:", user, isLoading)
 
-  // Initialize edit form when user data is available
-  useEffect(() => {
-    if (displayUser && isEditing) {
-      setEditForm({
-        name: displayUser.name || "",
-        bio: displayUser.bio || "",
-        location: displayUser.location || "",
-        website: displayUser.website || ""
-      })
-    }
-  }, [displayUser, isEditing])
+  const [editData, setEditData] = useState({
+    name: user?.name || '',
+    bio: user?.bio || '',
+    location: user?.location || '',
+    website: user?.website || ''
+  })
 
-  // Format join date
-  const formatJoinDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long'
-    })
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
   }
 
-  // Handle form input changes
-  const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({
+  // No user state
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No user data available</p>
+        </div>
+      </div>
+    )
+  }
+
+  const handleEdit = () => {
+    setIsEditing(!isEditing)
+  }
+
+  const handleSave = () => {
+    // In a real app, this would save to backend
+    console.log('Saving profile data:', editData)
+    setIsEditing(false)
+  }
+
+  const handleInputChange = (field, value) => {
+    setEditData(prev => ({
       ...prev,
       [field]: value
     }))
   }
 
-  // Handle save profile changes
-  const handleSaveProfile = async () => {
-    setIsSaving(true)
-    try {
-      // Add your API call here to save profile changes
-      // await updateUserProfile(editForm)
-      console.log("Saving profile:", editForm)
-      setIsEditing(false)
-    } catch (error) {
-      console.error("Error saving profile:", error)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  // Show loading state if auth is not ready
-  if (!isReady) {
-    return (
-      <div className="max-w-6xl mx-auto p-6 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+  const StatCard = ({ icon: Icon, label, value, color = "text-blue-600" }) => (
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{label}</p>
+          <p className={`text-2xl font-bold ${color}`}>{value}</p>
+        </div>
+        <Icon className={`w-8 h-8 ${color}`} />
       </div>
-    )
-  }
+    </div>
+  )
 
-  // Show message if user is not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="max-w-6xl mx-auto p-6 text-center">
-        <p className="text-gray-600">Please log in to view your profile.</p>
-      </div>
-    )
-  }
-
-  // Show message if no user data
-  if (!displayUser) {
-    return (
-      <div className="max-w-6xl mx-auto p-6 text-center">
-        <p className="text-gray-600">User not found.</p>
-      </div>
-    )
-  }
+  const BadgeDisplay = ({ type, count, color }) => (
+    <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-3">
+      <div className={`w-4 h-4 rounded-full ${color}`}></div>
+      <span className="text-sm font-medium text-gray-700 capitalize">{type}</span>
+      <span className="text-lg font-bold text-gray-900">{count}</span>
+    </div>
+  )
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      {/* Profile Header */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-start gap-6">
-            <Avatar className="w-24 h-24">
-              <AvatarImage src={displayUser.avatar || "/placeholder.svg"} alt={displayUser.name || "User"} />
-              <AvatarFallback className="text-2xl">
-                {displayUser.name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("") || "?"}
-              </AvatarFallback>
-            </Avatar>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-full flex items-center justify-center shadow-lg">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user?.name || 'User'} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <User className="w-12 h-12 md:w-16 md:h-16 text-gray-400" />
+                )}
+              </div>
+              <button className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-2 shadow-lg hover:bg-blue-600 transition-colors">
+                <Camera className="w-4 h-4 text-white" />
+              </button>
+            </div>
 
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-4">
+            {/* User Info */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                 <div>
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <Input
-                        value={editForm.name}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
-                        placeholder="Your name"
-                        className="text-2xl font-bold"
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <h1 className="text-3xl font-bold">{displayUser.name || "Unknown User"}</h1>
-                      {displayUser.username && (
-                        <p className="text-gray-600">@{displayUser.username}</p>
-                      )}
-                    </div>
-                  )}
+                  <h1 className="text-2xl md:text-3xl font-bold">{user?.name || 'User'}</h1>
+                  <p className="text-blue-100 text-lg">@{user?.username || 'username'}</p>
                 </div>
-                {isOwnProfile && isAuthenticated && (
-                  <div className="flex gap-2">
-                    {isEditing ? (
-                      <>
-                        <Button onClick={handleSaveProfile} disabled={isSaving} className="gap-2">
-                          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          {isSaving ? "Saving..." : "Save"}
-                        </Button>
-                        <Button variant="outline" onClick={() => setIsEditing(false)}>
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <Button onClick={() => setIsEditing(true)} className="gap-2">
-                        <Edit className="w-4 h-4" />
-                        Edit Profile
-                      </Button>
-                    )}
+                <button
+                  onClick={handleEdit}
+                  className="mt-2 md:mt-0 bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-center md:justify-start space-x-2">
+                  <Mail className="w-4 h-4 text-blue-200" />
+                  <span className="text-blue-100">{user?.email || 'No email'}</span>
+                </div>
+                {user?.location && (
+                  <div className="flex items-center justify-center md:justify-start space-x-2">
+                    <MapPin className="w-4 h-4 text-blue-200" />
+                    <span className="text-blue-100">{user.location}</span>
+                  </div>
+                )}
+                {user?.website && (
+                  <div className="flex items-center justify-center md:justify-start space-x-2">
+                    <Globe className="w-4 h-4 text-blue-200" />
+                    <span className="text-blue-100">{user.website}</span>
                   </div>
                 )}
               </div>
-
-              {isEditing ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={editForm.bio}
-                      onChange={(e) => handleInputChange("bio", e.target.value)}
-                      placeholder="Tell us about yourself..."
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="location">Location</Label>
-                      <Input
-                        id="location"
-                        value={editForm.location}
-                        onChange={(e) => handleInputChange("location", e.target.value)}
-                        placeholder="Your location"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="website">Website</Label>
-                      <Input
-                        id="website"
-                        value={editForm.website}
-                        onChange={(e) => handleInputChange("website", e.target.value)}
-                        placeholder="https://your-website.com"
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {displayUser.bio && (
-                    <p className="text-gray-700 mb-4">{displayUser.bio}</p>
-                  )}
-
-                  <div className="flex items-center gap-6 text-sm text-gray-600">
-                    {displayUser.location && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        <span>{displayUser.location}</span>
-                      </div>
-                    )}
-                    {displayUser.website && (
-                      <div className="flex items-center gap-1">
-                        <LinkIcon className="w-4 h-4" />
-                        <a href={displayUser.website} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                          {displayUser.website}
-                        </a>
-                      </div>
-                    )}
-                    {displayUser.joinDate && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Joined {formatJoinDate(displayUser.joinDate)}</span>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600">{displayUser.reputation || 0}</div>
-            <div className="text-sm text-gray-600">Reputation</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-green-600">{displayUser.questionsCount || displayUser.questions?.length || 0}</div>
-            <div className="text-sm text-gray-600">Questions</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-purple-600">{displayUser.answersCount || displayUser.answers?.length || 0}</div>
-            <div className="text-sm text-gray-600">Answers</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-amber-600">
-              {displayUser.badges ? (displayUser.badges.gold + displayUser.badges.silver + displayUser.badges.bronze) : 0}
-            </div>
-            <div className="text-sm text-gray-600">Badges</div>
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      <Tabs defaultValue="activity" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="questions">Questions</TabsTrigger>
-          <TabsTrigger value="answers">Answers</TabsTrigger>
-          {isOwnProfile && <TabsTrigger value="badges">Badges</TabsTrigger>}
-        </TabsList>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Edit Form */}
+        {isEditing && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={editData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <input
+                  type="text"
+                  value={editData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  placeholder="Enter your location"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                <input
+                  type="url"
+                  value={editData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  placeholder="https://yourwebsite.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                <textarea
+                  value={editData.bio}
+                  onChange={(e) => handleInputChange('bio', e.target.value)}
+                  placeholder="Tell us about yourself..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={handleEdit}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        )}
 
-        <TabsContent value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {displayUser.questions?.length === 0 && displayUser.answers?.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No recent activity</p>
-                ) : (
-                  <div className="space-y-3">
-                    {displayUser.answers?.map((answer, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <MessageSquare className="w-5 h-5 text-purple-600" />
-                        <div>
-                          <p className="font-medium">Answered a question</p>
-                          <p className="text-sm text-gray-600">Answer provided</p>
-                        </div>
-                      </div>
-                    ))}
-                    {displayUser.questions?.map((question, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                        <MessageSquare className="w-5 h-5 text-green-600" />
-                        <div>
-                          <p className="font-medium">Asked a question</p>
-                          <p className="text-sm text-gray-600">Question posted</p>
-                        </div>
-                      </div>
-                    ))}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard
+            icon={Star}
+            label="Reputation"
+            value={user?.reputation || 0}
+            color="text-yellow-600"
+          />
+          <StatCard
+            icon={MessageSquare}
+            label="Answers"
+            value={user?.answersCount || 0}
+            color="text-green-600"
+          />
+          <StatCard
+            icon={HelpCircle}
+            label="Questions"
+            value={user?.questionsCount || 0}
+            color="text-blue-600"
+          />
+          <StatCard
+            icon={Eye}
+            label="Views"
+            value={user?.viewsCount || 0}
+            color="text-purple-600"
+          />
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              {['overview', 'badges', 'activity'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
+                    activeTab === tab
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">About</h3>
+                  <p className="text-gray-600">
+                    {user?.bio || 'No bio available. Edit your profile to add a bio.'}
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Quick Stats</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{user?.reputation || 0}</div>
+                      <div className="text-sm text-gray-500">Reputation</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{user?.answersCount || 0}</div>
+                      <div className="text-sm text-gray-500">Answers</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{user?.questionsCount || 0}</div>
+                      <div className="text-sm text-gray-500">Questions</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{user?.votesReceived || 0}</div>
+                      <div className="text-sm text-gray-500">Votes</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'badges' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Badges</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <BadgeDisplay
+                      type="gold"
+                      count={user?.badges?.gold || 0}
+                      color="bg-yellow-400"
+                    />
+                    <BadgeDisplay
+                      type="silver"
+                      count={user?.badges?.silver || 0}
+                      color="bg-gray-400"
+                    />
+                    <BadgeDisplay
+                      type="bronze"
+                      count={user?.badges?.bronze || 0}
+                      color="bg-orange-400"
+                    />
+                  </div>
+                </div>
+                
+                {(!user?.badges?.gold && !user?.badges?.silver && !user?.badges?.bronze) && (
+                  <div className="text-center py-8">
+                    <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No badges earned yet. Keep participating to earn your first badge!</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            )}
 
-        <TabsContent value="questions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Questions ({displayUser.questionsCount || 0})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {displayUser.questions?.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No questions asked yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {displayUser.questions?.map((question, index) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <h3 className="font-medium">Question {index + 1}</h3>
-                      <p className="text-sm text-gray-600 mt-1">Question details would go here</p>
+            {activeTab === 'activity' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <MessageSquare className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium">Answered {user?.answersCount || 0} questions</p>
+                        <p className="text-xs text-gray-500">Contributing to the community</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="answers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Answers ({displayUser.answersCount || 0})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {displayUser.answers?.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No answers provided yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {displayUser.answers?.map((answer, index) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <h3 className="font-medium">Answer {index + 1}</h3>
-                      <p className="text-sm text-gray-600 mt-1">Answer details would go here</p>
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <HelpCircle className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium">Asked {user?.questionsCount || 0} questions</p>
+                        <p className="text-xs text-gray-500">Engaging with the community</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="badges" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Badges</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-yellow-600">{displayUser.badges?.gold || 0}</div>
-                  <div className="text-sm text-gray-600">Gold Badges</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <Trophy className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-600">{displayUser.badges?.silver || 0}</div>
-                  <div className="text-sm text-gray-600">Silver Badges</div>
-                </div>
-                <div className="text-center p-4 bg-amber-50 rounded-lg">
-                  <Trophy className="w-8 h-8 text-amber-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-amber-600">{displayUser.badges?.bronze || 0}</div>
-                  <div className="text-sm text-gray-600">Bronze Badges</div>
+                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <Star className="w-5 h-5 text-yellow-600" />
+                      <div>
+                        <p className="text-sm font-medium">Earned {user?.reputation || 0} reputation points</p>
+                        <p className="text-xs text-gray-500">Building credibility</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+
+export default UserProfile

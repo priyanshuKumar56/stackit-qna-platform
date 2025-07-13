@@ -32,70 +32,47 @@ interface UsersState {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  authChecked: boolean // Track if we've checked for existing auth
+  authChecked: boolean
 }
 
-// Check for existing token on initialization
+// Check for existing token and user data on initialization
 const getInitialAuthState = () => {
   const token = Cookies.get("auth-token")
+  const userData = localStorage.getItem("currentUser")
+  
+  let currentUser = null
+  if (userData) {
+    try {
+      currentUser = JSON.parse(userData)
+    } catch (error) {
+      localStorage.removeItem("currentUser")
+    }
+  }
+  
   return {
     token,
     isAuthenticated: !!token,
-    authChecked: false, // Will be set to true after checkAuth
+    authChecked: !!token, // If we have a token, consider auth checked
+    currentUser,
   }
 }
 
 const initialAuthState = getInitialAuthState()
 
 const initialState: UsersState = {
-  currentUser: null,
+  currentUser: initialAuthState.currentUser,
   users: [],
   userProfile: null,
   leaderboard: [],
   loading: false,
   error: null,
-  // Auth state
   token: initialAuthState.token,
   isAuthenticated: initialAuthState.isAuthenticated,
   isLoading: false,
   authChecked: initialAuthState.authChecked,
 }
 
-// Auth async thunks
-export const loginUser = createAsyncThunk(
-  "users/login",
-  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
-    try {
-      const response = await authAPI.login({ email, password })
-      const { token, user } = response.data
-      
-      // Set cookie
-      Cookies.set("auth-token", token, { expires: 7, secure: true, sameSite: 'strict' })
-      
-      return { token, user }
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Login failed")
-    }
-  }
-)
-
-export const registerUser = createAsyncThunk(
-  "users/register",
-  async (data: { name: string; username: string; email: string; password: string }, { rejectWithValue }) => {
-    try {
-      const response = await authAPI.register(data)
-      const { token, user } = response.data
-      
-      // Set cookie
-      Cookies.set("auth-token", token, { expires: 7, secure: true, sameSite: 'strict' })
-      
-      return { token, user }
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Registration failed")
-    }
-  }
-)
-
+// Simplified auth check that uses existing token
 export const checkAuth = createAsyncThunk(
   "users/checkAuth", 
   async (_, { rejectWithValue }) => {
@@ -105,16 +82,57 @@ export const checkAuth = createAsyncThunk(
         throw new Error("No token found")
       }
       
-      const response = await usersAPI.getCurrentUser()
-      return { user: response.data, token }
+      // Use the verify token endpoint instead of fetching user profile
+      const response = await authAPI.verifyToken()
+      return { user: response.data.user, token }
     } catch (error: any) {
-      // Remove invalid token
+      // Remove invalid token and user data
       Cookies.remove("auth-token")
+      localStorage.removeItem("currentUser")
       return rejectWithValue(error.response?.data?.message || "Authentication failed")
     }
   }
 )
 
+// Login thunk
+export const loginUser = createAsyncThunk(
+  "users/login",
+  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.login({ email, password })
+      const { token, user } = response.data
+      
+      // Set cookie and localStorage
+      Cookies.set("auth-token", token, { expires: 7, secure: true, sameSite: 'strict' })
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      
+      return { token, user }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Login failed")
+    }
+  }
+)
+
+// Register thunk
+export const registerUser = createAsyncThunk(
+  "users/register",
+  async (data: { name: string; username: string; email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.register(data)
+      const { token, user } = response.data
+      
+      // Set cookie and localStorage
+      Cookies.set("auth-token", token, { expires: 7, secure: true, sameSite: 'strict' })
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      
+      return { token, user }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Registration failed")
+    }
+  }
+)
+
+// Logout thunk
 export const logoutUser = createAsyncThunk(
   "users/logout",
   async (_, { rejectWithValue }) => {
@@ -122,28 +140,16 @@ export const logoutUser = createAsyncThunk(
       // Call logout API if it exists
       await authAPI.logout()
     } catch (error) {
-      // Continue with logout even if API call fails
       console.warn("Logout API call failed, continuing with local logout")
     } finally {
-      // Always remove token locally
+      // Always remove token and user data locally
       Cookies.remove("auth-token")
+      localStorage.removeItem("currentUser")
     }
   }
 )
 
-// Existing async thunks for API calls
-export const fetchCurrentUser = createAsyncThunk(
-  "users/fetchCurrentUser", 
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await usersAPI.getCurrentUser()
-      return response.data
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch current user")
-    }
-  }
-)
-
+// Fetch user profile by ID (for viewing other users)
 export const fetchUserProfile = createAsyncThunk(
   "users/fetchUserProfile", 
   async (userId: string, { rejectWithValue }) => {
@@ -156,6 +162,7 @@ export const fetchUserProfile = createAsyncThunk(
   }
 )
 
+// Update current user profile
 export const updateUserProfile = createAsyncThunk(
   "users/updateUserProfile",
   async (updateData: {
@@ -167,13 +174,19 @@ export const updateUserProfile = createAsyncThunk(
   }, { rejectWithValue }) => {
     try {
       const response = await usersAPI.updateProfile(updateData)
-      return response.data
+      const updatedUser = response.data.user
+      
+      // Update localStorage
+      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
+      
+      return updatedUser
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || "Failed to update profile")
     }
   },
 )
 
+// Fetch leaderboard
 export const fetchLeaderboard = createAsyncThunk(
   "users/fetchLeaderboard",
   async (params: {
@@ -189,6 +202,7 @@ export const fetchLeaderboard = createAsyncThunk(
   },
 )
 
+// Follow user
 export const followUser = createAsyncThunk(
   "users/followUser", 
   async (userId: string, { rejectWithValue }) => {
@@ -201,6 +215,7 @@ export const followUser = createAsyncThunk(
   }
 )
 
+// Search users
 export const searchUsers = createAsyncThunk(
   "users/searchUsers",
   async (params: {
@@ -223,6 +238,7 @@ const usersSlice = createSlice({
   reducers: {
     clearCurrentUser: (state) => {
       state.currentUser = null
+      localStorage.removeItem("currentUser")
     },
     clearUserProfile: (state) => {
       state.userProfile = null
@@ -230,9 +246,10 @@ const usersSlice = createSlice({
     clearError: (state) => {
       state.error = null
     },
-    // Manual logout reducer (for immediate logout without API call)
+    // Manual logout reducer
     logout: (state) => {
       Cookies.remove("auth-token")
+      localStorage.removeItem("currentUser")
       state.currentUser = null
       state.token = null
       state.isAuthenticated = false
@@ -242,6 +259,7 @@ const usersSlice = createSlice({
     },
     // Reset auth state
     resetAuthState: (state) => {
+      localStorage.removeItem("currentUser")
       state.currentUser = null
       state.token = null
       state.isAuthenticated = false
@@ -249,12 +267,14 @@ const usersSlice = createSlice({
       state.error = null
       state.isLoading = false
     },
+    // Update user reputation
     updateUserReputation: (state, action: PayloadAction<{ userId: string; amount: number }>) => {
       const { userId, amount } = action.payload
 
       // Update current user
       if (state.currentUser && state.currentUser.id === userId) {
         state.currentUser.reputation += amount
+        localStorage.setItem("currentUser", JSON.stringify(state.currentUser))
       }
 
       // Update user profile
@@ -274,6 +294,7 @@ const usersSlice = createSlice({
         state.leaderboard[leaderboardIndex].reputation += amount
       }
     },
+    // Increment user stats
     incrementUserStats: (
       state,
       action: PayloadAction<{
@@ -300,6 +321,7 @@ const usersSlice = createSlice({
       // Update current user
       if (state.currentUser && state.currentUser.id === userId) {
         updateUserStats(state.currentUser)
+        localStorage.setItem("currentUser", JSON.stringify(state.currentUser))
       }
 
       // Update user profile
@@ -315,7 +337,6 @@ const usersSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Auth cases
     // Login
     builder
       .addCase(loginUser.pending, (state) => {
@@ -375,6 +396,7 @@ const usersSlice = createSlice({
         state.isAuthenticated = true
         state.authChecked = true
         state.error = null
+        localStorage.setItem("currentUser", JSON.stringify(action.payload.user))
       })
       .addCase(checkAuth.rejected, (state, action) => {
         state.isLoading = false
@@ -399,28 +421,12 @@ const usersSlice = createSlice({
         state.error = null
       })
       .addCase(logoutUser.rejected, (state) => {
-        // Even if logout fails, clear local state
         state.isLoading = false
         state.currentUser = null
         state.token = null
         state.isAuthenticated = false
         state.authChecked = true
         state.error = null
-      })
-
-    // Fetch Current User
-    builder
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.loading = true
-        state.error = null
-      })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.loading = false
-        state.currentUser = action.payload.user
-      })
-      .addCase(fetchCurrentUser.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload as string
       })
 
     // Fetch User Profile
@@ -446,7 +452,7 @@ const usersSlice = createSlice({
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.loading = false
-        const updatedUser = action.payload.user
+        const updatedUser = action.payload
 
         // Update current user
         if (state.currentUser && state.currentUser.id === updatedUser.id) {

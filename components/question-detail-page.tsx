@@ -8,7 +8,7 @@ import { QuestionSidebar } from "@/components/question-sidebar"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { fetchQuestion, clearCurrentQuestion } from "@/store/questionsSlice"
 import { fetchComments, clearComments } from "@/store/commentsSlice"
-import { fetchCurrentUser } from "@/store/usersSlice"
+// import { fetchCurrentUser } from "@/store/usersSlice"
 import { useAuthStore } from "@/lib/auth"
 
 interface QuestionDetailPageProps {
@@ -21,6 +21,7 @@ export function QuestionDetailPage({ questionId }: QuestionDetailPageProps) {
   const { currentQuestion, loading, error } = useAppSelector((state) => state.questions)
   const { comments } = useAppSelector((state) => state.comments)
   const { currentUser } = useAppSelector((state) => state.users)
+  console.log("Current User:", currentUser)
 
   useEffect(() => {
     console.log("Fetching question and comments for ID:", questionId)
@@ -29,8 +30,8 @@ export function QuestionDetailPage({ questionId }: QuestionDetailPageProps) {
     dispatch(fetchComments(questionId))
 
     // Fetch current user if authenticated
-    // if (isAuthenticated && !currentUser) {
-    //   dispatch(fetchCurrentUser())
+    // if ( !currentUser) {
+    //   dispatch(fetchCurrentUser(currentUser?.id))
     // }
 
     // Cleanup when component unmounts

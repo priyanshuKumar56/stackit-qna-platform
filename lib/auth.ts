@@ -7,13 +7,16 @@ import { useEffect } from "react"
 export const useAuthStore = () => {
   const dispatch = useAppDispatch()
   const { currentUser, token, isAuthenticated, isLoading, error, authChecked } = useAppSelector((state) => state.users)
+  console.log("Auth Store State:", useAppSelector((state) => state.users))
   
   // Auto-check auth on hook initialization
   useEffect(() => {
-    if (!authChecked && !isLoading && token) {
-      dispatch(checkAuth())
+    // Only check auth if we haven't checked yet, have a token, and not currently loading
+    if (!authChecked && !isLoading && token && !currentUser) {
+      console.log("Checking auth...")
+      dispatch(checkAuth()) // No parameters needed
     }
-  }, [authChecked, isLoading, token, dispatch])
+  }, [authChecked, isLoading, token, currentUser, dispatch])
   
   return {
     user: currentUser,
@@ -24,6 +27,7 @@ export const useAuthStore = () => {
     authChecked,
     login: async (email: string, password: string) => {
       const result = await dispatch(loginUser({ email, password }))
+      console.log("Login Result:", result)
       if (loginUser.rejected.match(result)) {
         throw new Error(result.payload as string || "Login failed")
       }
@@ -44,6 +48,7 @@ export const useAuthStore = () => {
       // Use the sync logout action for immediate logout
       dispatch(logout())
     },
+    // Manual auth check function (optional)
     checkAuth: async () => {
       const result = await dispatch(checkAuth())
       if (checkAuth.rejected.match(result)) {
@@ -57,7 +62,7 @@ export const useAuthStore = () => {
 // Helper hook to check if user is authenticated and ready
 export const useAuth = () => {
   const { user, isAuthenticated, isLoading, authChecked } = useAuthStore()
-  
+  console.log("useAuth State:", { user, isAuthenticated, isLoading, authChecked })
   return {
     user,
     isAuthenticated,

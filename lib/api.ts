@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Important for cookies
+  withCredentials: true,
 })
 
 // Add auth token to requests
@@ -25,8 +25,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear invalid token
+      // Clear invalid token and user data
       Cookies.remove("auth-token")
+      localStorage.removeItem("currentUser")
       
       // Only redirect to login if not already on login/register pages
       const currentPath = window.location.pathname
@@ -107,10 +108,10 @@ export const votesAPI = {
 
 // Users API
 export const usersAPI = {
-  getCurrentUser: () => api.get("/users/me"),
-  
+  // Get user profile by ID (for viewing other users)
   getUserProfile: (id: string) => api.get(`/users/${id}`),
   
+  // Update current user's profile
   updateProfile: (data: {
     name?: string
     bio?: string
@@ -157,7 +158,7 @@ export const authAPI = {
     password: string
   }) => api.post("/auth/reset-password", data),
   
-  // New method to verify token
+  // Verify token and get current user
   verifyToken: () => api.get("/auth/verify"),
 }
 

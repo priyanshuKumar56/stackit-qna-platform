@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Search, Bell, Plus, User, Settings, LogOut, MessageSquare, ThumbsUp, AtSign, ChevronDown } from "lucide-react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { setSearchQuery, setQuestionModalOpen } from "@/store/uiSlice"
+import Link from "next/link"
 
 const notifications = [
   {
@@ -155,9 +156,13 @@ export function Header() {
                 </div>
               </div>
               <DropdownMenuSeparator />
+
               <DropdownMenuItem className="text-gray-700">
+                <Link href="/profile" className="flex items-center gap-2">
                 <User className="mr-2 h-4 w-4" />
                 Profile
+                </Link>
+                
               </DropdownMenuItem>
               <DropdownMenuItem className="text-gray-700">
                 <Settings className="mr-2 h-4 w-4" />
